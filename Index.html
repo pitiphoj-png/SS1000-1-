@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ระบบจัดการคลังวัตถุดิบ</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    :root {
+      --red-900: #7f1d1d;
+      --red-800: #991b1b;
+      --red-700: #b91c1c;
+      --red-600: #dc2626;
+      --red-500: #ef4444;
+      --red-400: #f87171;
+      --red-300: #fca5a5;
+      --red-100: #fee2e2;
+      --red-50:  #fff5f5;
+
+      --ink:   #1a0a0a;
+      --ink-2: #3d1515;
+      --ink-3: #6b2121;
+      --muted: #9ca3af;
+      --border: rgba(220,38,38,0.18);
+      --surface: #ffffff;
+      --surface-2: #fdf5f5;
+      --surface-3: #fdecea;
+
+      --shadow-sm: 0 2px 8px rgba(180,30,30,0.10);
+      --shadow-md: 0 6px 24px rgba(180,30,30,0.13);
+      --shadow-lg: 0 16px 48px rgba(180,30,30,0.16);
+
+      --radius-sm: 10px;
+      --radius-md: 16px;
+      --radius-lg: 24px;
+      --radius-xl: 32px;
+
+      --font: 'Noto Sans Thai', sans-serif;
+      --mono: 'IBM Plex Mono', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font);
+      background: #fdf0f0;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(220,38,38,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 90% 80%, rgba(185,28,28,0.07) 0%, transparent 50%);
+      min-height: 100vh;
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255,255,255,0.88);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 16px;
+    }
+
+    .nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      height: 60px;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .nav-logo .icon-wrap {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--red-700), var(--red-500));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 4px 12px rgba(220,38,38,0.35);
+    }
+
+    .nav-logo h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--red-800);
+      line-height: 1.2;
+      display: none;
+    }
+
+    @media (min-width: 480px) {
+      .nav-logo h1 { display: block; }
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 6px;
+      flex: 1;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .nav-tabs::-webkit-scrollbar { display: none; }
+
+    .tab-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 99px;
+      border: 1.5px solid transparent;
+      background: transparent;
+      color: var(--ink-3);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn .tab-icon { font-size: 15px; }
+
+    .tab-btn:hover {
+      background: var(--red-50);
+      border-color: #fecaca;
+    }
+
+    .tab-btn.active {
+      background: var(--red-700);
+      color: #fff;
+      border-color: var(--red-700);
+      box-shadow: 0 4px 14px rgba(185,28,28,0.35);
+    }
+
+    .page { display: none; animation: fadeIn 0.3s ease; }
+    .page.active { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .page-hero {
+      background: linear-gradient(135deg, var(--red-800) 0%, var(--red-600) 60%, var(--red-500) 100%);
+      color: #fff;
+      padding: 28px 20px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .page-hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    .page-hero::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: #fdf0f0;
+      background-image: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(220,38,38,0.12) 0%, transparent 60%);
+      clip-path: ellipse(55% 100% at 50% 100%);
+    }
+
+    .page-hero-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    .page-hero-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      opacity: 0.7;
+      margin-bottom: 6px;
+    }
+
+    .page-hero h2 {
+      font-size: clamp(22px, 5vw, 32px);
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .page-hero p {
+      font-size: 14px;
+      opacity: 0.85;
+      margin-top: 4px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: -44px auto 0;
+      padding: 0 16px 40px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      border: 1px solid rgba(220,38,38,0.08);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--red-700);
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 1fr;
+    }
+
+    @media (min-width: 640px) {
+      .grid-2 { grid-template-columns: 1fr 1fr; }
+      .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+    }
+
+    .field-group { display: flex; flex-direction: column; gap: 6px; }
+
+    label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+    }
+
+    select, input[type="text"], input[type="number"] {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: var(--font);
+      font-size: 15px;
+      color: var(--ink);
+      background: var(--surface-2);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+      -webkit-appearance: none;
+    }
+
+    select:focus, input:focus {
+      border-color: var(--red-500);
+      box-shadow: 0 0 0 3px rgba(239,68,68,0.15);
+      background: #fff;
+    }
+
+    .shelf-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 13px 16px;
+      background: var(--surface-3);
+      border: 1.5px dashed var(--red-300);
+      border-radius: var(--radius-sm);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--red-700);
+      font-family: var(--mono);
+      min-height: 50px;
+      transition: all 0.2s;
+    }
+
+    .shelf-box.has-value {
+      background: var(--red-100);
+      border-style: solid;
+      border-color: var(--red-400);
+    }
+
+    .shelf-box .shelf-icon { font-size: 18px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 13px 20px;
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      text-decoration: none;
+      letter-spacing: 0.02em;
+    }
+
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--red-700), var(--red-500));
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(185,28,28,0.30);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, var(--red-800), var(--red-600));
+      box-shadow: 0 6px 20px rgba(185,28,28,0.40);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #065f46, #10b981);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(16,185,129,0.30);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, var(--red-900), var(--red-700));
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(127,29,29,0.35);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--ink-3);
+      border: 1.5px solid var(--border);
+    }
+
+    .btn-block { width: 100%; }
+    .btn-lg { padding: 15px 24px; font-size: 16px; border-radius: var(--radius-md); }
+
+    .qr-scan-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      background: linear-gradient(135deg, var(--red-700), var(--red-500));
+      border: none;
+      border-radius: var(--radius-sm);
+      color: #fff;
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(185,28,28,0.30);
+      transition: all 0.2s;
+      width: 100%;
+    }
+
+    .qr-icon {
+      width: 40px;
+      height: 40px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .qr-scan-btn .btn-text { text-align: left; }
+    .qr-scan-btn .btn-text small {
+      display: block;
+      font-size: 11px;
+      opacity: 0.8;
+      font-weight: 400;
+      margin-top: 1px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 360px;
+    }
+
+    thead th {
+      background: linear-gradient(to right, var(--red-900), var(--red-700));
+      color: #fff;
+      padding: 13px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+
+    tbody td {
+      padding: 13px 16px;
+      font-size: 14px;
+      vertical-align: middle;
+    }
+
+    .text-right { text-align: right; }
+
+    .qty-input {
+      width: 110px !important;
+      padding: 8px 10px !important;
+      font-size: 14px !important;
+      text-align: right;
+      border-radius: 8px !important;
+      border: 1.5px solid var(--border) !important;
+      background: #fff !important;
+    }
+
+    .badge-remain {
+      display: inline-flex;
+      align-items: center;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 99px;
+      background: var(--red-50);
+      color: var(--red-700);
+      border: 1px solid #fecaca;
+    }
+
+    .badge-remain.low {
+      background: #fff7ed;
+      color: #c2410c;
+      border-color: #fed7aa;
+    }
+
+    .empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .empty .empty-icon { font-size: 40px; opacity: 0.4; }
+    .empty p { font-size: 14px; }
+
+    .status {
+      display: none;
+      padding: 13px 16px;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      font-size: 14px;
+      margin-top: 14px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .status.show { display: flex; align-items: center; gap: 10px; }
+    .status.success {
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #6ee7b7;
+    }
+
+    .status.error {
+      background: var(--red-50);
+      color: var(--red-700);
+      border: 1px solid var(--red-300);
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(20,5,5,0.75);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      padding: 16px;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    @media (min-width: 640px) {
+      .modal { align-items: center; }
+    }
+
+    .modal.show { display: flex; animation: fadeIn 0.25s ease; }
+
+    .modal-content {
+      background: #fff;
+      border-radius: var(--radius-xl) var(--radius-xl) var(--radius-md) var(--radius-md);
+      padding: 0;
+      width: 100%;
+      max-width: 500px;
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .modal-header {
+      background: linear-gradient(135deg, var(--red-800), var(--red-600));
+      color: #fff;
+      padding: 20px 20px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-header h3 { font-size: 18px; font-weight: 800; }
+
+    .modal-close {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: none;
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .modal-body { padding: 20px; }
+
+    #reader {
+      width: 100%;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: #111;
+      min-height: 260px;
+      position: relative;
+    }
+
+    #reader video {
+      border-radius: var(--radius-md);
+      width: 100% !important;
+    }
+
+    #reader > div { border-radius: var(--radius-md) !important; }
+    #reader img { display: none !important; }
+    #reader span { display: none !important; }
+
+    .scanner-hint {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: var(--surface-2);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      color: var(--ink-3);
+    }
+
+    .save-bar {
+      position: sticky;
+      bottom: 16px;
+      margin-top: 10px;
+    }
+
+    .save-bar-inner {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .stock-filter {
+      display: flex;
+      gap: 10px;
+    }
+
+    .stock-filter input {
+      flex: 1;
+    }
+
+    .stock-shelf {
+      display: inline-flex;
+      align-items: center;
+      background: var(--red-100);
+      color: var(--red-800);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 99px;
+      border: 1px solid var(--red-300);
+    }
+
+    .loader {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 20px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .loader.show { display: flex; }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #fecaca;
+      border-top-color: var(--red-600);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .item-name { font-weight: 600; color: var(--ink); }
+
+    @media (max-width: 480px) {
+      .card { padding: 16px; }
+      .page-hero { padding: 20px 16px 72px; }
+      thead th { padding: 11px 12px; font-size: 11px; }
+      tbody td { padding: 11px 12px; font-size: 13px; }
+      .nav-inner { height: 54px; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <div class="nav-logo">
+        <div class="icon-wrap">🏭</div>
+        <h1>คลังวัตถุดิบ</h1>
+      </div>
+      <div class="nav-tabs">
+        <button class="tab-btn active" onclick="showPage('receivePage', this)">
+          <span class="tab-icon">📥</span> รับเข้า
+        </button>
+        <button class="tab-btn" onclick="showPage('withdrawPage', this)">
+          <span class="tab-icon">📤</span> เบิกออก
+        </button>
+        <button class="tab-btn" onclick="showPage('stockPage', this)">
+          <span class="tab-icon">📊</span> Stock
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <div id="receivePage" class="page active">
+    <div class="page-hero">
+      <div class="page-hero-inner">
+        <div class="page-hero-label">📥 รับเข้าวัตถุดิบ</div>
+        <h2>บันทึกรับสินค้าเข้าคลัง</h2>
+        <p>สแกน QR Code ชั้นจัดเก็บ แล้วกรอกจำนวนที่รับเข้า</p>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="card">
+        <div class="card-title">⚙️ ข้อมูลการรับเข้า</div>
+
+        <div class="grid grid-3">
+          <div class="field-group">
+            <label>ผู้บันทึก</label>
+            <select id="receiveUser">
+              <option value="">— เลือกผู้บันทึก —</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label>สแกน QR Code</label>
+            <button class="qr-scan-btn" onclick="openScanner('receive')">
+              <div class="qr-icon">⬛</div>
+              <div class="btn-text">
+                เปิดกล้องสแกน QR
+                <small>กดเพื่อสแกนชั้นจัดเก็บ</small>
+              </div>
+            </button>
+          </div>
+
+          <div class="field-group">
+            <label>ชั้นจัดเก็บที่เลือก</label>
+            <div id="receiveShelf" class="shelf-box">
+              <span class="shelf-icon">📦</span>
+              <span id="receiveShelfText">ยังไม่ได้สแกน</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📋 รายการสินค้ารับเข้า</div>
+        <div id="receiveLoader" class="loader">
+          <div class="spinner"></div> กำลังโหลดรายการ...
+        </div>
+        <div id="receiveTableWrap">
+          <div class="empty">
+            <div class="empty-icon">📷</div>
+            <p>สแกน QR Code เพื่อแสดงรายการวัตถุดิบในชั้นนี้</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="save-bar">
+        <div class="save-bar-inner">
+          <button class="btn btn-success btn-block btn-lg" onclick="saveReceiveData()">
+            ✅ บันทึกรับเข้า
+          </button>
+        </div>
+        <div id="receiveStatus" class="status"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="withdrawPage" class="page">
+    <div class="page-hero">
+      <div class="page-hero-inner">
+        <div class="page-hero-label">📤 เบิกออกวัตถุดิบ</div>
+        <h2>บันทึกเบิกสินค้าออกจากคลัง</h2>
+        <p>สแกน QR Code ชั้นจัดเก็บ แล้วกรอกจำนวนที่ต้องการเบิก</p>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="card">
+        <div class="card-title">⚙️ ข้อมูลการเบิกออก</div>
+
+        <div class="grid grid-3">
+          <div class="field-group">
+            <label>ผู้บันทึก</label>
+            <select id="withdrawUser">
+              <option value="">— เลือกผู้บันทึก —</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label>สแกน QR Code</label>
+            <button class="qr-scan-btn" onclick="openScanner('withdraw')">
+              <div class="qr-icon">⬛</div>
+              <div class="btn-text">
+                เปิดกล้องสแกน QR
+                <small>กดเพื่อสแกนชั้นจัดเก็บ</small>
+              </div>
+            </button>
+          </div>
+
+          <div class="field-group">
+            <label>ชั้นจัดเก็บที่เลือก</label>
+            <div id="withdrawShelf" class="shelf-box">
+              <span class="shelf-icon">📦</span>
+              <span id="withdrawShelfText">ยังไม่ได้สแกน</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📋 รายการสินค้าเบิกออก</div>
+        <div id="withdrawLoader" class="loader">
+          <div class="spinner"></div> กำลังโหลดรายการ...
+        </div>
+        <div id="withdrawTableWrap">
+          <div class="empty">
+            <div class="empty-icon">📷</div>
+            <p>สแกน QR Code เพื่อแสดงรายการวัตถุดิบในชั้นนี้</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="save-bar">
+        <div class="save-bar-inner">
+          <button class="btn btn-danger btn-block btn-lg" onclick="saveWithdrawData()">
+            🚚 บันทึกเบิกออก
+          </button>
+        </div>
+        <div id="withdrawStatus" class="status"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="stockPage" class="page">
+    <div class="page-hero">
+      <div class="page-hero-inner">
+        <div class="page-hero-label">📊 ตรวจสอบ Stock</div>
+        <h2>ยอดคงเหลือวัตถุดิบทั้งหมด</h2>
+        <p>ค้นหาสินค้าตามชื่อ หรือดูยอดคงเหลือรายชั้น</p>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="card">
+        <div class="card-title">🔍 ค้นหา</div>
+        <div class="stock-filter">
+          <input type="text" id="stockKeyword" list="itemSuggestions"
+            placeholder="ชื่อสินค้า หรือปล่อยว่างเพื่อดูทั้งหมด…"
+            onkeydown="if(event.key==='Enter') loadStock()">
+          <datalist id="itemSuggestions"></datalist>
+          <button class="btn btn-primary" onclick="loadStock()">
+            🔍 ค้นหา
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📦 ตารางสต็อกสินค้า</div>
+        <div id="stockLoader" class="loader">
+          <div class="spinner"></div> กำลังโหลดข้อมูล Stock...
+        </div>
+        <div id="stockTableWrap"></div>
+        <div id="stockStatus" class="status"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="scannerModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h3>สแกน QR Code</h3>
+          <p>วางกล้องให้ตรง QR Code ชั้นจัดเก็บ</p>
+        </div>
+        <button class="modal-close" onclick="closeScanner()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="reader"></div>
+        <div class="scanner-hint">
+          💡 เมื่อสแกนสำเร็จ ระบบจะปิดกล้องและโหลดรายการสินค้าอัตโนมัติ
+        </div>
+        <div id="scannerError" class="status" style="margin-top:10px;"></div>
+        <button class="btn btn-ghost btn-block" style="margin-top:12px;" onclick="closeScanner()">
+          ✕ ยกเลิก
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ใส่ URL Web App ของ Apps Script ตรงนี้
+    const API_BASE = 'https://script.google.com/macros/s/AKfycbyPxes05PtslxyXPIgsfLNZGkgHnELLdck4rS-jt78UD656YpGj1GXSvjLlagqeE4i6Uw/exec';
+
+    let appData = { users: [], itemNames: [] };
+    let currentScanMode = null;
+    let html5QrCode = null;
+    let scannerRunning = false;
+    let receiveItems = [];
+    let withdrawItems = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await apiGet('getInitialData');
+        appData = res.data || { users: [], itemNames: [] };
+        bindUsers('receiveUser', appData.users);
+        bindUsers('withdrawUser', appData.users);
+        bindSuggestions(appData.itemNames);
+        await loadStock();
+      } catch (err) {
+        showStatus('stockStatus', '❌ ' + (err.message || 'โหลดข้อมูลเริ่มต้นไม่สำเร็จ'), 'error');
+      }
+    });
+
+    async function apiGet(action, params = {}) {
+      const url = new URL(API_BASE);
+      url.searchParams.set('action', action);
+
+      Object.keys(params).forEach(key => {
+        url.searchParams.set(key, params[key]);
+      });
+
+      const response = await fetch(url.toString(), {
+        method: 'GET'
+      });
+
+      if (!response.ok) {
+        throw new Error('เชื่อมต่อ API ไม่สำเร็จ');
+      }
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.message || 'API Error');
+      }
+      return data;
+    }
+
+    async function apiPost(action, payload = {}) {
+      const response = await fetch(API_BASE, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8'
+        },
+        body: JSON.stringify({
+          action,
+          payload
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('เชื่อมต่อ API ไม่สำเร็จ');
+      }
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.message || 'API Error');
+      }
+      return data;
+    }
+
+    function bindUsers(selectId, users) {
+      const el = document.getElementById(selectId);
+      el.innerHTML = '<option value="">— เลือกผู้บันทึก —</option>' +
+        users.map(u => `<option value="${esc(u)}">${esc(u)}</option>`).join('');
+    }
+
+    function bindSuggestions(items) {
+      const dl = document.getElementById('itemSuggestions');
+      dl.innerHTML = items.map(i => `<option value="${esc(i)}"></option>`).join('');
+    }
+
+    function showPage(pageId, btn) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(pageId).classList.add('active');
+      btn.classList.add('active');
+      if (pageId === 'stockPage') loadStock();
+    }
+
+    function openScanner(mode) {
+      currentScanMode = mode;
+      clearStatus('scannerError');
+
+      const modal = document.getElementById('scannerModal');
+      modal.classList.add('show');
+
+      setTimeout(() => {
+        initScanner();
+      }, 350);
+    }
+
+    function initScanner() {
+      destroyScanner().then(() => {
+        startScanner();
+      });
+    }
+
+    function destroyScanner() {
+      return new Promise((resolve) => {
+        if (!html5QrCode) {
+          clearReaderDOM();
+          resolve();
+          return;
+        }
+
+        const qr = html5QrCode;
+        html5QrCode = null;
+        scannerRunning = false;
+
+        if (qr.isScanning) {
+          qr.stop()
+            .then(() => qr.clear())
+            .catch(() => {})
+            .finally(() => {
+              clearReaderDOM();
+              resolve();
+            });
+        } else {
+          try { qr.clear(); } catch(e) {}
+          clearReaderDOM();
+          resolve();
+        }
+      });
+    }
+
+    function clearReaderDOM() {
+      const el = document.getElementById('reader');
+      if (el) el.innerHTML = '';
+    }
+
+    function startScanner() {
+      const readerEl = document.getElementById('reader');
+      if (!readerEl) return;
+
+      readerEl.innerHTML = '';
+
+      try {
+        html5QrCode = new Html5Qrcode('reader', { verbose: false });
+
+        const config = {
+          fps: 10,
+          qrbox: function(w, h) {
+            const size = Math.min(w, h) * 0.7;
+            return { width: Math.floor(size), height: Math.floor(size) };
+          },
+          aspectRatio: 1.0,
+          disableFlip: false,
+          rememberLastUsedCamera: true
+        };
+
+        Html5Qrcode.getCameras().then(cameras => {
+          if (!cameras || cameras.length === 0) {
+            showStatus('scannerError', '❌ ไม่พบกล้องในอุปกรณ์นี้', 'error');
+            return;
+          }
+
+          let cameraId = cameras[0].id;
+          for (const cam of cameras) {
+            const label = (cam.label || '').toLowerCase();
+            if (label.includes('back') || label.includes('rear') || label.includes('environment')) {
+              cameraId = cam.id;
+              break;
+            }
+          }
+
+          html5QrCode.start(cameraId, config, onScanSuccess, onScanError)
+            .then(() => {
+              scannerRunning = true;
+            })
+            .catch(() => {
+              html5QrCode.start({ facingMode: { ideal: 'environment' } }, config, onScanSuccess, onScanError)
+                .then(() => { scannerRunning = true; })
+                .catch(() => {
+                  showStatus('scannerError', '❌ ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการใช้งานกล้อง', 'error');
+                });
+            });
+        }).catch(() => {
+          html5QrCode.start({ facingMode: { ideal: 'environment' } }, config, onScanSuccess, onScanError)
+            .then(() => { scannerRunning = true; })
+            .catch(() => {
+              showStatus('scannerError', '❌ ไม่สามารถเปิดกล้องได้: กรุณาตรวจสอบสิทธิ์การใช้งานกล้อง', 'error');
+            });
+        });
+
+      } catch (err) {
+        showStatus('scannerError', '❌ เกิดข้อผิดพลาด: ' + err.message, 'error');
+      }
+    }
+
+    function onScanSuccess(decodedText) {
+      const shelf = (decodedText || '').trim();
+      if (!shelf) return;
+
+      if (navigator.vibrate) navigator.vibrate(80);
+
+      closeScanner();
+
+      if (currentScanMode === 'receive') {
+        setShelfDisplay('receive', shelf);
+        loadShelfItems('receive', shelf);
+      } else if (currentScanMode === 'withdraw') {
+        setShelfDisplay('withdraw', shelf);
+        loadShelfItems('withdraw', shelf);
+      }
+    }
+
+    function onScanError(err) {}
+
+    function closeScanner() {
+      const modal = document.getElementById('scannerModal');
+      modal.classList.remove('show');
+      destroyScanner();
+    }
+
+    function setShelfDisplay(mode, shelf) {
+      const box = document.getElementById(mode + 'Shelf');
+      const textEl = document.getElementById(mode + 'ShelfText');
+      if (textEl) textEl.textContent = shelf;
+      if (box) {
+        box.classList.add('has-value');
+        box.querySelector('.shelf-icon').textContent = '✅';
+      }
+    }
+
+    async function loadShelfItems(mode, shelf) {
+      if (!shelf) return;
+      const statusId = mode + 'Status';
+      const loaderId = mode + 'Loader';
+      clearStatus(statusId);
+      showLoader(loaderId, true);
+
+      try {
+        const res = await apiGet('getItemsByShelf', { shelfCode: shelf });
+        const rows = res.data || [];
+        showLoader(loaderId, false);
+
+        if (mode === 'receive') {
+          receiveItems = rows;
+          renderReceiveTable(receiveItems);
+        } else {
+          withdrawItems = rows;
+          renderWithdrawTable(withdrawItems);
+        }
+      } catch (err) {
+        showLoader(loaderId, false);
+        showStatus(statusId, '❌ ' + (err.message || 'โหลดข้อมูลไม่สำเร็จ'), 'error');
+      }
+    }
+
+    function renderReceiveTable(rows) {
+      const wrap = document.getElementById('receiveTableWrap');
+      if (!rows || rows.length === 0) {
+        wrap.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><p>ไม่พบรายการวัตถุดิบในชั้นจัดเก็บนี้</p></div>';
+        return;
+      }
+
+      let html = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>รายการสินค้า</th>
+                <th class="text-right">คงเหลือ</th>
+                <th class="text-right">รับเข้า</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      rows.forEach((r, i) => {
+        const low = r.remain <= r.ss;
+        html += `
+          <tr>
+            <td><span class="item-name">${esc(r.itemName)}</span></td>
+            <td class="text-right">
+              <span class="badge-remain ${low ? 'low' : ''}">${fmt(r.remain)}</span>
+            </td>
+            <td class="text-right">
+              <input type="number" min="0" step="0.01" id="receiveQty_${i}" class="qty-input" placeholder="0">
+            </td>
+          </tr>
+        `;
+      });
+
+      html += '</tbody></table></div>';
+      wrap.innerHTML = html;
+    }
+
+    function renderWithdrawTable(rows) {
+      const wrap = document.getElementById('withdrawTableWrap');
+      if (!rows || rows.length === 0) {
+        wrap.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><p>ไม่พบรายการวัตถุดิบในชั้นจัดเก็บนี้</p></div>';
+        return;
+      }
+
+      let html = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>รายการสินค้า</th>
+                <th class="text-right">คงเหลือ</th>
+                <th class="text-right">เบิกออก</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      rows.forEach((r, i) => {
+        const low = r.remain <= r.ss;
+        html += `
+          <tr>
+            <td><span class="item-name">${esc(r.itemName)}</span></td>
+            <td class="text-right">
+              <span class="badge-remain ${low ? 'low' : ''}">${fmt(r.remain)}</span>
+            </td>
+            <td class="text-right">
+              <input type="number" min="0" step="0.01" id="withdrawQty_${i}" class="qty-input" placeholder="0" max="${r.remain}">
+            </td>
+          </tr>
+        `;
+      });
+
+      html += '</tbody></table></div>';
+      wrap.innerHTML = html;
+    }
+
+    async function saveReceiveData() {
+      const user = document.getElementById('receiveUser').value;
+      const shelfText = document.getElementById('receiveShelfText');
+      const shelf = shelfText ? shelfText.textContent.trim() : '';
+
+      if (!user) {
+        showStatus('receiveStatus', '⚠️ กรุณาเลือกผู้บันทึก', 'error');
+        return;
+      }
+      if (!shelf || shelf === 'ยังไม่ได้สแกน') {
+        showStatus('receiveStatus', '⚠️ กรุณาสแกน QR Code ชั้นจัดเก็บก่อน', 'error');
+        return;
+      }
+
+      const items = receiveItems.map((r, i) => ({
+        rowIndex: r.rowIndex,
+        itemName: r.itemName,
+        oldRemain: Number(r.remain || 0),
+        qty: Number(document.getElementById(`receiveQty_${i}`)?.value || 0)
+      }));
+
+      try {
+        const res = await apiPost('saveReceive', { user, shelf, items });
+        showStatus('receiveStatus', '✅ ' + (res.message || 'บันทึกสำเร็จ'), 'success');
+        await loadShelfItems('receive', shelf);
+        await loadStock();
+      } catch (err) {
+        showStatus('receiveStatus', '❌ ' + (err.message || 'บันทึกไม่สำเร็จ'), 'error');
+      }
+    }
+
+    async function saveWithdrawData() {
+      const user = document.getElementById('withdrawUser').value;
+      const shelfText = document.getElementById('withdrawShelfText');
+      const shelf = shelfText ? shelfText.textContent.trim() : '';
+
+      if (!user) {
+        showStatus('withdrawStatus', '⚠️ กรุณาเลือกผู้บันทึก', 'error');
+        return;
+      }
+      if (!shelf || shelf === 'ยังไม่ได้สแกน') {
+        showStatus('withdrawStatus', '⚠️ กรุณาสแกน QR Code ชั้นจัดเก็บก่อน', 'error');
+        return;
+      }
+
+      const items = withdrawItems.map((r, i) => ({
+        rowIndex: r.rowIndex,
+        itemName: r.itemName,
+        oldRemain: Number(r.remain || 0),
+        qty: Number(document.getElementById(`withdrawQty_${i}`)?.value || 0)
+      }));
+
+      try {
+        const res = await apiPost('saveWithdraw', { user, shelf, items });
+        showStatus('withdrawStatus', '✅ ' + (res.message || 'บันทึกสำเร็จ'), 'success');
+        await loadShelfItems('withdraw', shelf);
+        await loadStock();
+      } catch (err) {
+        showStatus('withdrawStatus', '❌ ' + (err.message || 'บันทึกไม่สำเร็จ'), 'error');
+      }
+    }
+
+    async function loadStock() {
+      const keyword = document.getElementById('stockKeyword').value || '';
+      clearStatus('stockStatus');
+      showLoader('stockLoader', true);
+      document.getElementById('stockTableWrap').innerHTML = '';
+
+      try {
+        const res = await apiGet('searchStock', { keyword });
+        showLoader('stockLoader', false);
+        renderStockTable(res.data || []);
+      } catch (err) {
+        showLoader('stockLoader', false);
+        showStatus('stockStatus', '❌ ' + (err.message || 'ค้นหา Stock ไม่สำเร็จ'), 'error');
+      }
+    }
+
+    function renderStockTable(rows) {
+      const wrap = document.getElementById('stockTableWrap');
+      clearStatus('stockStatus');
+
+      if (!rows || rows.length === 0) {
+        wrap.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><p>ไม่พบข้อมูล Stock</p></div>';
+        return;
+      }
+
+      let html = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ชั้นจัดเก็บ</th>
+                <th>รายการสินค้า</th>
+                <th class="text-right">SS</th>
+                <th class="text-right">คงเหลือ</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      rows.forEach(r => {
+        const low = r.remain <= r.ss;
+        html += `
+          <tr>
+            <td><span class="stock-shelf">${esc(r.shelf)}</span></td>
+            <td><span class="item-name">${esc(r.itemName)}</span></td>
+            <td class="text-right" style="color:var(--muted);font-family:var(--mono);font-size:13px;">${fmt(r.ss)}</td>
+            <td class="text-right">
+              <span class="badge-remain ${low ? 'low' : ''}">${fmt(r.remain)}</span>
+            </td>
+          </tr>
+        `;
+      });
+
+      html += `</tbody></table></div>
+        <div style="margin-top:12px; font-size:12px; color:var(--muted); text-align:right;">
+          รวม ${rows.length} รายการ
+          &nbsp;|&nbsp;
+          <span style="color:#c2410c; font-weight:700;">🟠 = ต่ำกว่า SS</span>
+        </div>`;
+      wrap.innerHTML = html;
+    }
+
+    function showStatus(id, msg, type) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.className = 'status show ' + (type || 'success');
+      el.innerHTML = msg;
+    }
+
+    function clearStatus(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.className = 'status';
+      el.innerHTML = '';
+    }
+
+    function showLoader(id, show) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.className = show ? 'loader show' : 'loader';
+    }
+
+    function fmt(val) {
+      return Number(val || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 });
+    }
+
+    function esc(text) {
+      return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>
